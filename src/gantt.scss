@@ -44,6 +44,11 @@ $handle-color: #ddd !default;
 		fill: none;
 		stroke: $text-muted;
 		stroke-width: 1.4;
+
+		// During a drag the arrow is shown lighter as it is pending drop
+		.pending {
+			stroke: lighten( $text-muted, 30% );
+		}
 	}
 
 	.bar {
@@ -85,6 +90,20 @@ $handle-color: #ddd !default;
 		opacity: 0;
 		visibility: hidden;
 		transition: opacity .3s ease;
+	}
+
+	// Drag handle always shows and has a drag cursor
+	.dep-handle {
+		fill: $handle-color;
+		cursor: pointer;
+		stroke: $handle-color;
+		stroke-width: 0;
+		transition: stroke-width .3s ease;
+
+		// It grows on hover
+		&:hover {
+			stroke-width: 5;
+		}
 	}
 
 	.bar-wrapper {

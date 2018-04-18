@@ -573,18 +573,24 @@ export default class Gantt {
         let y_on_start = 0;
         let is_resizing_left = false;
         let is_resizing_right = false;
+        let is_linking = false;
         let parent_bar_id = null;
         let bars = []; // instanceof Bar
         this.bar_being_dragged = null;
 
         function action_in_progress() {
-            return is_dragging || is_resizing_left || is_resizing_right;
+            return (
+                is_dragging ||
+                is_resizing_left ||
+                is_resizing_right ||
+                is_linking
+            );
         }
 
         $.on(
             this.layers.bar,
             'mousedown',
-            '.bar-wrapper, .handle',
+            '.bar-wrapper, .handle, .dep-handle',
             (e, element) => {
                 const bar_wrapper = $.closest('.bar-wrapper', element);
 
@@ -592,6 +598,9 @@ export default class Gantt {
                     is_resizing_left = true;
                 } else if (element.classList.contains('right')) {
                     is_resizing_right = true;
+                } else if (element.classList.contains('dep-handle')) {
+                    // Mousedown on dependency drag handle starts a drag operation
+                    is_linking = true;
                 } else if (element.classList.contains('bar-wrapper')) {
                     is_dragging = true;
                 }
@@ -625,6 +634,55 @@ export default class Gantt {
             const dx = e.offsetX - x_on_start;
             const dy = e.offsetY - y_on_start;
 
+            // Moving during a dependency drag operation
+            if (is_linking) {
+                const row_height =
+                    this.options.bar_height + this.options.padding;
+                const steps = Math.ceil(dy / row_height - 0.5);
+                // Not yet over a lower task (right now only lower tasks)
+                if (steps < 1) {
+                    if (this.linking_link) {
+                        this.linking_link.element.remove();
+                        this.linking_link.element = null;
+                        this.linking_link = null;
+                    }
+                } else {
+                    const target_bar = this.bars[bars[0].task._index + steps];
+                    // If there is a link shown currently and it is different
+                    // from the mouse position, remove it
+                    if (
+                        this.linking_link &&
+                        this.linking_link.to_task !== target_bar.task
+                    ) {
+                        this.linking_link.element.remove();
+                        this.linking_link.element = null;
+                        this.linking_link = null;
+                    }
+                    // If there is no pending link, and there is no permanent link
+                    // add a new pending one.
+                    if (
+                        !this.linking_link &&
+                        !this.dependency_map[bars[0].task.id].includes(
+                            target_bar.task.id
+                        )
+                    ) {
+                        this.linking_link = new Arrow(
+                            this,
+                            bars[0], // from_task
+                            target_bar // to_task
+                        );
+                        this.linking_link.element.setAttribute(
+                            'class',
+                            'pending'
+                        );
+                        this.layers.arrow.appendChild(
+                            this.linking_link.element
+                        );
+                    }
+                }
+                return;
+            }
+
             bars.forEach(bar => {
                 const $bar = bar.$bar;
                 $bar.finaldx = this.get_snap_position(dx);
@@ -657,9 +715,17 @@ export default class Gantt {
                 bars.forEach(bar => bar.group.classList.remove('active'));
             }
 
+            // Convert pending link to real one
+            if (is_linking && this.linking_link) {
+                this.arrows.push(this.linking_link);
+                this.linking_link.element.setAttribute('class', '');
+                this.linking_link = null;
+            }
+
             is_dragging = false;
             is_resizing_left = false;
             is_resizing_right = false;
+            is_linking = false;
         });
 
         $.on(this.$svg, 'mouseup', e => {

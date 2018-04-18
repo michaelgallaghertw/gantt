@@ -148,6 +148,15 @@ export default class Bar {
             append_to: this.handle_group
         });
 
+        // Draw dependenct drag handle
+        createSVG('circle', {
+            cx: bar.getX() + bar.getWidth() + 9,
+            cy: bar.getY() + bar.getHeight() / 2,
+            r: 3,
+            class: 'dep-handle',
+            append_to: this.handle_group
+        });
+
         if (this.task.progress && this.task.progress < 100) {
             this.$handle_progress = createSVG('polygon', {
                 points: this.get_progress_polygon_points().join(','),
@@ -365,7 +374,8 @@ export default class Bar {
 
         if (label.getBBox().width > bar.getWidth()) {
             label.classList.add('big');
-            label.setAttribute('x', bar.getX() + bar.getWidth() + 5);
+            // Displaced label needs to give space for dependency drag handle
+            label.setAttribute('x', bar.getX() + bar.getWidth() + 5 + 12);
         } else {
             label.classList.remove('big');
             label.setAttribute('x', bar.getX() + bar.getWidth() / 2);
@@ -380,6 +390,10 @@ export default class Bar {
         this.handle_group
             .querySelector('.handle.right')
             .setAttribute('x', bar.getEndX() - 9);
+        // Dependency drag handle should move with dragging the task
+        this.handle_group
+            .querySelector('.dep-handle')
+            .setAttribute('cx', bar.getX() + bar.getWidth() + 9);
         const handle = this.group.querySelector('.handle.progress');
         handle &&
             handle.setAttribute('points', this.get_progress_polygon_points());

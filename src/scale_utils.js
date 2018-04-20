@@ -22,6 +22,7 @@ export default {
         tick_lower_multiplier: 4,
         tick_upper_multiplier: 0,
         offset_x: (datea, dateb) => diff(datea, dateb, 'hour') / (24 / 4) * 38,
+        offset_to_date: (start, x) => add(start, (x / 38) * (24 / 4), 'hour'),
     },
     'Half Day': {
         step: 24 / 2,
@@ -41,6 +42,7 @@ export default {
         tick_lower_multiplier: 2,
         tick_upper_multiplier: 0,
         offset_x: (datea, dateb) => diff(datea, dateb, 'hour') / (24 / 2) * 38,
+        offset_to_date: (start, x) => add(start, (x / 38) * (24 / 2), 'hour'),
     },
     Day: {
         step: 24,
@@ -57,6 +59,7 @@ export default {
         tick_lower_multiplier: 1,
         tick_upper_multiplier: 30,
         offset_x: (datea, dateb) => diff(datea, dateb, 'hour') / 24 * 38,
+        offset_to_date: (start, x) => add(start, (x / 38) * 24, 'hour'),
     },
     Week: {
         step: 24 * 7,
@@ -74,7 +77,8 @@ export default {
             date.getMonth() !== last_date.getMonth() ? format(date, 'MMMM') : '',
         tick_lower_multiplier: 0,
         tick_upper_multiplier: 4,
-        offset_x: (datea, dateb) => diff(datea, dateb, 'hour') / (24 / 4) * 140,
+        offset_x: (datea, dateb) => diff(datea, dateb, 'hour') / (24 * 7) * 140,
+        offset_to_date: (start, x) => add(start, (x / 140) * 24 * 7, 'hour'),
     },
     Month: {
         step: 24 * 30,
@@ -90,5 +94,6 @@ export default {
         tick_lower_multiplier: 1,
         tick_upper_multiplier: 12,
         offset_x: (datea, dateb) => diff(datea, dateb, 'day') / 30 * 120,
+        offset_to_date: (start, x) => add(start, (x / 120) * 30, 'day'),
     }
 };

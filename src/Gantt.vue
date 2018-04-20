@@ -1,5 +1,5 @@
 <template>
-    <div class="gantt-container">
+    <div class="gantt-container" @mousemove="move" @mouseup="release" @wheel="zoom">
         <svg class="gantt" :width="grid_width" :height="grid_height">
             <g class="grid">
                 <rect class="grid-background" x="0" y="0" :width="grid_width" :height="grid_height"/>
@@ -19,12 +19,15 @@
 
             </g>
             <g class="bar">
-                <GanttBar v-for="(task, index) in tasks" :key="task.id" v-bind="{ task, index, sizing, scale, start }"/>
+                <GanttBar v-for="(task, index) in tasks" :key="task.id"
+                          v-bind="{ task, index, sizing, scale, start }"
+                        @drag="drag"/>
             </g>
         </svg>
     </div>
 </template>
 <script>
+    import { throttle } from 'lodash-es';
     import { diff } from './date_utils';
     import scales from './scale_utils';
     import GanttGridRows from './GanttGridRows.vue';
@@ -41,6 +44,7 @@
                 bar_height: 20,
                 padding: 18,
                 view_mode: 'Day',
+                bar_being_dragged: null,
             };
         },
         computed: {
@@ -71,6 +75,24 @@
                 const hours_before_first_task = diff(this.raw_start, this.start, 'hour');
                 const scroll_pos = ((hours_before_first_task / this.scale.step) * this.scale.column_width) - this.scale.column_width;
                 this.$el.scrollLeft = scroll_pos;
+            },
+            drag(bar) { this.bar_being_dragged = bar; },
+            move(e) { this.bar_being_dragged && this.bar_being_dragged.move(e); },
+            release(e) {
+                this.bar_being_dragged && this.bar_being_dragged.release(e);
+                this.bar_being_dragged = null;
+            },
+            zoom: throttle(function(e) {
+                const view_modes = Object.keys(scales);
+                const modifier = e.deltaY > 1 ? 1 : e.deltaY < -1 ? -1 : 0;
+                let index = view_modes.indexOf(this.view_mode) + modifier;
+                index = Math.min(Math.max(0, index), view_modes.length - 1);
+                this.view_mode = view_modes[index];
+            }, 1000, { trailing: false }),
+        },
+        watch: {
+            view_mode() {
+                this.horizontal_scroll();
             }
         },
         mounted() { this.horizontal_scroll(); },

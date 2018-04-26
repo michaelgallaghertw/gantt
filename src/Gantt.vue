@@ -1,5 +1,5 @@
 <template>
-    <div class="gantt-container" @mousemove="move" @mouseup="release" @wheel="zoom">
+    <div class="gantt-container" @mousemove="move" @mouseup="release" @wheel.prevent="zoom">
         <svg class="gantt" :width="grid_width" :height="grid_height">
             <g class="grid">
                 <rect class="grid-background" x="0" y="0" :width="grid_width" :height="grid_height"/>
@@ -84,7 +84,7 @@
             },
             zoom: throttle(function(e) {
                 const view_modes = Object.keys(scales);
-                const modifier = e.deltaY > 1 ? 1 : e.deltaY < -1 ? -1 : 0;
+                const modifier = e.deltaY > 0 ? 1 : -1;
                 let index = view_modes.indexOf(this.view_mode) + modifier;
                 index = Math.min(Math.max(0, index), view_modes.length - 1);
                 this.view_mode = view_modes[index];

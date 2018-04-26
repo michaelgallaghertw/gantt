@@ -1,5 +1,5 @@
 <template>
-    <div class="gantt-container" @mousemove="move" @mouseup="release" @wheel.prevent="zoom">
+    <div class="gantt-container" @mousemove="move" @mouseup="release" @wheel="wheel">
         <svg class="gantt" :width="grid_width" :height="grid_height">
             <g class="grid">
                 <rect class="grid-background" x="0" y="0" :width="grid_width" :height="grid_height"/>
@@ -82,13 +82,21 @@
                 this.bar_being_dragged && this.bar_being_dragged.release(e);
                 this.bar_being_dragged = null;
             },
-            zoom: throttle(function(e) {
+            zoom: throttle(function(modifier) {
                 const view_modes = Object.keys(scales);
-                const modifier = e.deltaY > 0 ? 1 : -1;
                 let index = view_modes.indexOf(this.view_mode) + modifier;
                 index = Math.min(Math.max(0, index), view_modes.length - 1);
                 this.view_mode = view_modes[index];
             }, 1000, { trailing: false }),
+            wheel: function(e) {
+                // More movement in the X axis than Y, defer to default behaviour
+                if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+                    return;
+                }
+                const modifier = e.deltaY > 0 ? 1 : -1;
+                this.zoom(modifier);
+                e.preventDefault();
+            },
         },
         watch: {
             view_mode() {

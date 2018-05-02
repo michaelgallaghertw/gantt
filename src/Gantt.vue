@@ -1,5 +1,5 @@
 <template>
-    <div class="gantt-container" @mousemove="move" @mouseup="release" @wheel="wheel">
+    <div class="gantt-container" @mousedown="drag" @mousemove="move" @mouseup="release" @wheel="wheel">
         <svg class="gantt" :width="grid_width" :height="grid_height">
             <g class="grid">
                 <rect class="grid-background" x="0" y="0" :width="grid_width" :height="grid_height"/>
@@ -13,41 +13,52 @@
                     :last_tick="index > 0 ? ticks[index - 1] : new Date(0)"/>
             </g>
             <g class="arrow">
-
+                <GanttArrow v-for="link in links" :key="`${link.from.id}:${link.to.id}`"
+                    v-bind="{ link, sizing }"/>
             </g>
             <g class="progress">
 
             </g>
             <g class="bar">
-                <GanttBar v-for="(task, index) in tasks" :key="task.id"
-                          v-bind="{ task, index, sizing, scale, start }"
-                        @drag="drag"/>
+                <GanttBar v-for="(task, index) in positioned_tasks" :key="task.id"
+                          v-bind="{ task, index, sizing, scale, start, dragging }"
+                          @change="change" @persist="persist"/>
             </g>
         </svg>
     </div>
 </template>
 <script>
     import { throttle } from 'lodash-es';
+    import Vue from 'vue';
     import { diff } from './date_utils';
     import scales from './scale_utils';
     import GanttGridRows from './GanttGridRows.vue';
     import GanttGridColumns from './GanttGridColumns.vue';
     import GanttTick from './GanttTick.vue';
     import GanttBar from './GanttBar.vue';
+    import GanttArrow from './GanttArrow.vue';
 
     export default {
         props: ['tasks'],
-        components: { GanttGridColumns, GanttGridRows, GanttTick, GanttBar },
+        components: { GanttGridColumns, GanttGridRows, GanttTick, GanttBar, GanttArrow },
         data() {
             return {
                 header_height: 50,
                 bar_height: 20,
                 padding: 18,
                 view_mode: 'Day',
-                bar_being_dragged: null,
+                changes: {},
+                dragging: null,
             };
         },
         computed: {
+            links: vm => vm.positioned_tasks.reduce((deps, task) => [
+                ...deps,
+                ...(task.dependencies || []).map((dep) => ({
+                    to: task,
+                    from: vm.positioned_tasks.find((ptask) => ptask.id === dep)
+                }))
+            ], []),
             rowcount: vm => vm.tasks.length,
             grid_height: vm => vm.header_height + vm.padding +
                 (vm.bar_height + vm.padding) * vm.rowcount,
@@ -60,6 +71,18 @@
             end: vm => vm.scale.pad_end(vm.raw_end),
             ticks: vm => vm.scale.ticks(vm.start, vm.end),
             grid_width: vm => vm.ticks.length * vm.scale.column_width,
+
+            positioned_tasks: vm => vm.tasks.map((task, index) => {
+                const duration = (diff(task.end, task.start, 'hour') + 24) / vm.scale.step;
+                return {
+                    ...task,
+                    x: vm.scale.offset_x(task.start, vm.start),
+                    y: vm.header_height + vm.padding + (index * (vm.bar_height + vm.padding)),
+                    duration,
+                    width: vm.scale.column_width * duration,
+                    changes: vm.changes[task.id] || {},
+                };
+            }),
 
             sizing: vm => ({
                 bar_height: vm.bar_height,
@@ -76,11 +99,28 @@
                 const scroll_pos = ((hours_before_first_task / this.scale.step) * this.scale.column_width) - this.scale.column_width;
                 this.$el.scrollLeft = scroll_pos;
             },
-            drag(bar) { this.bar_being_dragged = bar; },
-            move(e) { this.bar_being_dragged && this.bar_being_dragged.move(e); },
-            release(e) {
-                this.bar_being_dragged && this.bar_being_dragged.release(e);
-                this.bar_being_dragged = null;
+            change(data) {
+                Vue.set(this.changes, data.id, data);
+            },
+            persist(changes) {
+                const task = this.tasks.find((task) => task.id === changes.id);
+                Object.assign(task, changes);
+                delete this.changes[changes.id];
+            },
+            drag(e) {
+                this.dragging = { ex: e.offsetX, ey: e.offsetY, dx: 0, dy: 0 };
+            },
+            move(e) {
+                if (this.dragging) {
+                    this.dragging = {
+                        ...this.dragging,
+                        dx: e.offsetX - this.dragging.ex,
+                        dy: e.offsetY - this.dragging.ey,
+                    };
+                }
+            },
+            release() {
+                this.dragging = null;
             },
             zoom: throttle(function(modifier) {
                 const view_modes = Object.keys(scales);
@@ -121,6 +161,11 @@
 
         .hide {
             display: none;
+        }
+        .arrow {
+            fill: none;
+            stroke: $text-muted;
+            stroke-width: 1.4;
         }
     }
 

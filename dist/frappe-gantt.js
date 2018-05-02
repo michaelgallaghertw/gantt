@@ -20497,17 +20497,13 @@ var GanttTick = { render: function render() {
 };
 
 var GanttBar = { render: function render() {
-        var _vm = this;var _h = _vm.$createElement;var _c = _vm._self._c || _h;return _c('g', { class: ['bar-wrapper', _vm.task.custom_class], attrs: { "data-id": _vm.task.id }, on: { "mousedown": _vm.drag } }, [_c('g', { staticClass: "bar-group" }, [_c('rect', _vm._b({ staticClass: "bar" }, 'rect', { x: _vm.x, y: _vm.y, width: _vm.width, height: _vm.height, rx: _vm.bar_corner_radius, ry: _vm.bar_corner_radius }, false)), _vm._v(" "), _c('rect', _vm._b({ staticClass: "bar-progress" }, 'rect', { x: _vm.x, y: _vm.y, width: _vm.progress_width, height: _vm.height, rx: _vm.bar_corner_radius, ry: _vm.bar_corner_radius }, false)), _vm._v(" "), _c('text', { class: ['bar-label', { big: _vm.big_label }], attrs: { "x": _vm.text_x, "y": _vm.y + _vm.height / 2 } }, [_vm._v(_vm._s(_vm.task.name))])]), _vm._v(" "), _c('g', { staticClass: "handle-group" }, [_c('rect', _vm._b({ staticClass: "handle right", on: { "mousedown": function mousedown($event) {
-                    $event.stopPropagation();return _vm.resize_right($event);
-                } } }, 'rect', {
+        var _vm = this;var _h = _vm.$createElement;var _c = _vm._self._c || _h;return _c('g', { class: ['bar-wrapper', _vm.task.custom_class], attrs: { "data-id": _vm.task.id }, on: { "mousedown": _vm.drag } }, [_c('g', { staticClass: "bar-group" }, [_c('rect', _vm._b({ staticClass: "bar" }, 'rect', { x: _vm.x, y: _vm.y, width: _vm.width, height: _vm.height, rx: _vm.bar_corner_radius, ry: _vm.bar_corner_radius }, false)), _vm._v(" "), _c('rect', _vm._b({ staticClass: "bar-progress" }, 'rect', { x: _vm.x, y: _vm.y, width: _vm.progress_width, height: _vm.height, rx: _vm.bar_corner_radius, ry: _vm.bar_corner_radius }, false)), _vm._v(" "), _c('text', { class: ['bar-label', { big: _vm.big_label }], attrs: { "x": _vm.text_x, "y": _vm.y + _vm.height / 2 } }, [_vm._v(_vm._s(_vm.task.name))])]), _vm._v(" "), _c('g', { staticClass: "handle-group" }, [_c('rect', _vm._b({ staticClass: "handle right", on: { "mousedown": _vm.resize_right } }, 'rect', {
             x: _vm.x + _vm.width - (_vm.handle_width + 1),
             y: _vm.y + 1,
             width: _vm.handle_width,
             height: _vm.height - 2,
             rx: _vm.bar_corner_radius,
-            ry: _vm.bar_corner_radius }, false)), _vm._v(" "), _c('rect', _vm._b({ staticClass: "handle left", on: { "mousedown": function mousedown($event) {
-                    $event.stopPropagation();return _vm.resize_left($event);
-                } } }, 'rect', {
+            ry: _vm.bar_corner_radius }, false)), _vm._v(" "), _c('rect', _vm._b({ staticClass: "handle left", on: { "mousedown": _vm.resize_left } }, 'rect', {
             x: _vm.x + 1,
             y: _vm.y + 1,
             width: _vm.handle_width,
@@ -20515,7 +20511,7 @@ var GanttBar = { render: function render() {
             rx: _vm.bar_corner_radius,
             ry: _vm.bar_corner_radius }, false))])]);
     }, staticRenderFns: [],
-    props: ['task', 'index', 'sizing', 'scale', 'start'],
+    props: ['task', 'index', 'sizing', 'scale', 'start', 'dragging'],
     data: function data() {
         return {
             bar_corner_radius: 3,
@@ -20523,30 +20519,19 @@ var GanttBar = { render: function render() {
             big_label: false,
             ex: 0,
             ey: 0,
-            drag_action: null,
-            drag_x: 0,
-            drag_width: 0
+            drag_action: null
         };
     },
 
     computed: {
-        data_x: function data_x(vm) {
-            return vm.scale.offset_x(vm.task.start, vm.start);
-        },
         x: function x(vm) {
-            return vm.drag_action ? vm.drag_x : vm.data_x;
+            return vm.task.changes.x || vm.task.x;
         },
         y: function y(vm) {
-            return vm.sizing.header_height + vm.sizing.padding + vm.index * (vm.height + vm.sizing.padding);
-        },
-        duration: function duration(vm) {
-            return (diff(vm.task.end, vm.task.start, 'hour') + 24) / vm.scale.step;
-        },
-        data_width: function data_width(vm) {
-            return vm.sizing.column_width * vm.duration;
+            return vm.task.y;
         },
         width: function width(vm) {
-            return vm.drag_action ? vm.drag_width : vm.data_width;
+            return vm.task.changes.width || vm.task.width;
         },
         height: function height(vm) {
             return vm.sizing.bar_height;
@@ -20567,44 +20552,51 @@ var GanttBar = { render: function render() {
                 _this.big_label = label.getBBox().width > _this.width;
             });
         },
-        resize_right: function resize_right(e) {
-            this.drag(e, 'right');
+        resize_right: function resize_right() {
+            this.drag_action = 'right';
         },
-        resize_left: function resize_left(e) {
-            this.drag(e, 'left');
+        resize_left: function resize_left() {
+            this.drag_action = 'left';
         },
-        drag: function drag(e) {
-            var action = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'move';
 
-            this.ex = e.offsetX;
-            this.drag_x = this.x;
-            this.drag_width = this.width;
-            this.drag_action = action;
-            this.$emit('drag', this);
-        },
-        move: function move(e) {
-            var dx = e.offsetX - this.ex;
-            var finaldx = this.get_snap_position(dx);
-            if (['left', 'move'].includes(this.drag_action)) {
-                this.drag_x = this.data_x + finaldx;
-            }
-            if (this.drag_action === 'left') {
-                this.drag_width = this.data_width - finaldx;
-            }
-            if (this.drag_action === 'right') {
-                this.drag_width = this.data_width + finaldx;
-            }
-        },
-        release: function release(e) {
-            this.task.start = this.scale.offset_to_date(this.start, this.drag_x);
-            // End date always gets 24 hours added on in the display, so need to remove it here
-            this.task.end = add$4(this.scale.offset_to_date(this.start, this.drag_x + this.drag_width), -24, 'hour');
-            this.drag_action = null;
+        // event bubbles, so need to ensure we don't overwrite a resize action
+        drag: function drag() {
+            this.drag_action = this.drag_action || 'move';
         },
         get_snap_position: function get_snap_position(dx) {
             var column_divisor = Math.ceil(this.scale.step / 24);
             var day_width = this.sizing.column_width / column_divisor;
             return Math.round(dx / day_width) * day_width;
+        }
+    },
+    watch: {
+        dragging: function dragging(val) {
+            if (this.drag_action) {
+                if (val) {
+                    var finaldx = this.get_snap_position(val.dx);
+                    var _task = this.task,
+                        id = _task.id,
+                        x = _task.x,
+                        width = _task.width;
+
+                    if (['left', 'move'].includes(this.drag_action)) {
+                        x = this.task.x + finaldx;
+                    }
+                    if (this.drag_action === 'left') {
+                        width = this.task.width - finaldx;
+                    }
+                    if (this.drag_action === 'right') {
+                        width = this.task.width + finaldx;
+                    }
+                    this.$emit('change', { id: id, x: x, width: width });
+                } else {
+                    var start = this.scale.offset_to_date(this.start, this.x);
+                    // End date always gets 24 hours added on in the display, so need to remove it here
+                    var end = add$4(this.scale.offset_to_date(this.start, this.x + this.width), -24, 'hour');
+                    this.drag_action = null;
+                    this.$emit('persist', { id: this.task.id, start: start, end: end });
+                }
+            }
         }
     },
     mounted: function mounted() {
@@ -20615,26 +20607,123 @@ var GanttBar = { render: function render() {
     }
 };
 
+var GanttArrow = { render: function render() {
+        var _vm = this;var _h = _vm.$createElement;var _c = _vm._self._c || _h;return _c('path', { attrs: { "d": _vm.path, "data-from": _vm.link.from.id, "data-to": _vm.link.to.id } });
+    }, staticRenderFns: [],
+    props: ['link', 'sizing'],
+    data: function data() {
+        return {
+            arrow_curve: 5
+        };
+    },
+
+    computed: {
+        tx: function tx(vm) {
+            return vm.link.to.changes.x || vm.link.to.x;
+        },
+        fx: function fx(vm) {
+            return vm.link.from.changes.x || vm.link.from.x;
+        },
+        fw: function fw(vm) {
+            return vm.link.from.changes.width || vm.link.from.width;
+        },
+
+        ideal_sx: function ideal_sx(vm) {
+            return vm.tx - vm.sizing.padding;
+        },
+        sx: function sx() {
+            var furthest_left = this.fx + this.sizing.padding;
+            var furthest_right = this.fx + this.fw / 2;
+            return Math.min(Math.max(this.ideal_sx, furthest_left), furthest_right);
+        },
+
+        sy: function sy(vm) {
+            return vm.sizing.bar_height + vm.link.from.y;
+        },
+        ex: function ex(vm) {
+            return vm.tx - vm.sizing.padding / 2;
+        },
+        ey: function ey(vm) {
+            return vm.sizing.bar_height / 2 + vm.link.to.y;
+        },
+
+        upwards: function upwards(vm) {
+            return vm.link.from.y > vm.link.to.y;
+        },
+        clockwise: function clockwise(vm) {
+            return vm.upwards ? 1 : 0;
+        },
+        curve_y: function curve_y(vm) {
+            return vm.upwards ? -vm.arrow_curve : vm.arrow_curve;
+        },
+
+        down_1: function down_1(vm) {
+            return vm.sizing.padding / 2 - vm.arrow_curve;
+        },
+        down_2: function down_2(vm) {
+            return vm.link.to.y + vm.sizing.bar_height / 2 - vm.curve_y;
+        },
+
+        /**
+         * If the to bar is more left than the from bar, we need
+         * an extra 2 curves in the path.
+         */
+        down_to_target: function down_to_target(vm) {
+            return vm.tx < vm.fx + vm.sizing.padding ? "v " + vm.down_1 + "\n            " + vm.arc(true, true, false) + "\n            H " + vm.ideal_sx + "\n            " + vm.arc(vm.clockwise, true, vm.clockwise) + "\n            V " + vm.down_2 : "V " + (vm.ey - vm.curve_y);
+        },
+
+        path: function path(vm) {
+            return "M " + vm.sx + " " + vm.sy + "\n                        " + vm.down_to_target + "\n                        " + vm.arc(vm.clockwise, false, vm.clockwise) + "\n                        L " + vm.ex + " " + vm.ey + "\n                        m -5 -5\n                        l 5 5\n                        l -5 5";
+        }
+
+    },
+    methods: {
+        /**
+         * Draw an SVG Elliptical Arc
+         * http://xahlee.info/js/svg_path_ellipse_arc.html
+         */
+        arc: function arc(sweep, left, higher) {
+            var ac = this.arrow_curve;
+            return "a " + ac + " " + ac + " 0 0 " + (sweep ? 1 : 0) + " " + ac * (left ? -1 : 1) + " " + ac * (higher ? -1 : 1);
+        }
+    }
+};
+
 var GanttVue = { render: function render() {
-        var _vm = this;var _h = _vm.$createElement;var _c = _vm._self._c || _h;return _c('div', { staticClass: "gantt-container", on: { "mousemove": _vm.move, "mouseup": _vm.release, "wheel": _vm.zoom } }, [_c('svg', { staticClass: "gantt", attrs: { "width": _vm.grid_width, "height": _vm.grid_height } }, [_c('g', { staticClass: "grid" }, [_c('rect', { staticClass: "grid-background", attrs: { "x": "0", "y": "0", "width": _vm.grid_width, "height": _vm.grid_height } }), _vm._v(" "), _c('GanttGridRows', _vm._b({}, 'GanttGridRows', { rowcount: _vm.rowcount, sizing: _vm.sizing }, false)), _vm._v(" "), _c('rect', { staticClass: "grid-header", attrs: { "x": "0", "y": "0", "width": _vm.grid_width, "height": _vm.header_height + 10 } }), _vm._v(" "), _c('GanttGridColumns', _vm._b({}, 'GanttGridColumns', { ticks: _vm.ticks, view_mode: _vm.view_mode, sizing: _vm.sizing, scale: _vm.scale, start: _vm.start }, false))], 1), _vm._v(" "), _c('g', { staticClass: "date" }, _vm._l(_vm.ticks, function (tick, index) {
+        var _vm = this;var _h = _vm.$createElement;var _c = _vm._self._c || _h;return _c('div', { staticClass: "gantt-container", on: { "mousedown": _vm.drag, "mousemove": _vm.move, "mouseup": _vm.release, "wheel": _vm.wheel } }, [_c('svg', { staticClass: "gantt", attrs: { "width": _vm.grid_width, "height": _vm.grid_height } }, [_c('g', { staticClass: "grid" }, [_c('rect', { staticClass: "grid-background", attrs: { "x": "0", "y": "0", "width": _vm.grid_width, "height": _vm.grid_height } }), _vm._v(" "), _c('GanttGridRows', _vm._b({}, 'GanttGridRows', { rowcount: _vm.rowcount, sizing: _vm.sizing }, false)), _vm._v(" "), _c('rect', { staticClass: "grid-header", attrs: { "x": "0", "y": "0", "width": _vm.grid_width, "height": _vm.header_height + 10 } }), _vm._v(" "), _c('GanttGridColumns', _vm._b({}, 'GanttGridColumns', { ticks: _vm.ticks, view_mode: _vm.view_mode, sizing: _vm.sizing, scale: _vm.scale, start: _vm.start }, false))], 1), _vm._v(" "), _c('g', { staticClass: "date" }, _vm._l(_vm.ticks, function (tick, index) {
             return _c('GanttTick', _vm._b({ attrs: { "last_tick": index > 0 ? _vm.ticks[index - 1] : new Date(0) } }, 'GanttTick', { tick: tick, index: index, sizing: _vm.sizing, scale: _vm.scale }, false));
-        })), _vm._v(" "), _c('g', { staticClass: "arrow" }), _vm._v(" "), _c('g', { staticClass: "progress" }), _vm._v(" "), _c('g', { staticClass: "bar" }, _vm._l(_vm.tasks, function (task, index) {
-            return _c('GanttBar', _vm._b({ key: task.id, on: { "drag": _vm.drag } }, 'GanttBar', { task: task, index: index, sizing: _vm.sizing, scale: _vm.scale, start: _vm.start }, false));
+        })), _vm._v(" "), _c('g', { staticClass: "arrow" }, _vm._l(_vm.links, function (link) {
+            return _c('GanttArrow', _vm._b({ key: link.from.id + ':' + link.to.id }, 'GanttArrow', { link: link, sizing: _vm.sizing }, false));
+        })), _vm._v(" "), _c('g', { staticClass: "progress" }), _vm._v(" "), _c('g', { staticClass: "bar" }, _vm._l(_vm.positioned_tasks, function (task, index) {
+            return _c('GanttBar', _vm._b({ key: task.id, on: { "change": _vm.change, "persist": _vm.persist } }, 'GanttBar', { task: task, index: index, sizing: _vm.sizing, scale: _vm.scale, start: _vm.start, dragging: _vm.dragging }, false));
         }))])]);
     }, staticRenderFns: [],
     props: ['tasks'],
-    components: { GanttGridColumns: GanttGridColumns, GanttGridRows: GanttGridRows, GanttTick: GanttTick, GanttBar: GanttBar },
+    components: { GanttGridColumns: GanttGridColumns, GanttGridRows: GanttGridRows, GanttTick: GanttTick, GanttBar: GanttBar, GanttArrow: GanttArrow },
     data: function data() {
         return {
             header_height: 50,
             bar_height: 20,
             padding: 18,
             view_mode: 'Day',
-            bar_being_dragged: null
+            changes: {},
+            dragging: null
         };
     },
 
     computed: {
+        links: function links(vm) {
+            return vm.positioned_tasks.reduce(function (deps, task) {
+                return [].concat(toConsumableArray(deps), toConsumableArray((task.dependencies || []).map(function (dep) {
+                    return {
+                        to: task,
+                        from: vm.positioned_tasks.find(function (ptask) {
+                            return ptask.id === dep;
+                        })
+                    };
+                })));
+            }, []);
+        },
         rowcount: function rowcount(vm) {
             return vm.tasks.length;
         },
@@ -20673,6 +20762,19 @@ var GanttVue = { render: function render() {
             return vm.ticks.length * vm.scale.column_width;
         },
 
+        positioned_tasks: function positioned_tasks(vm) {
+            return vm.tasks.map(function (task, index) {
+                var duration = (diff(task.end, task.start, 'hour') + 24) / vm.scale.step;
+                return _extends({}, task, {
+                    x: vm.scale.offset_x(task.start, vm.start),
+                    y: vm.header_height + vm.padding + index * (vm.bar_height + vm.padding),
+                    duration: duration,
+                    width: vm.scale.column_width * duration,
+                    changes: vm.changes[task.id] || {}
+                });
+            });
+        },
+
         sizing: function sizing(vm) {
             return {
                 bar_height: vm.bar_height,
@@ -20690,24 +20792,46 @@ var GanttVue = { render: function render() {
             var scroll_pos = hours_before_first_task / this.scale.step * this.scale.column_width - this.scale.column_width;
             this.$el.scrollLeft = scroll_pos;
         },
-        drag: function drag(bar) {
-            this.bar_being_dragged = bar;
+        change: function change(data) {
+            Vue.set(this.changes, data.id, data);
+        },
+        persist: function persist(changes) {
+            var task = this.tasks.find(function (task) {
+                return task.id === changes.id;
+            });
+            Object.assign(task, changes);
+            delete this.changes[changes.id];
+        },
+        drag: function drag(e) {
+            this.dragging = { ex: e.offsetX, ey: e.offsetY, dx: 0, dy: 0 };
         },
         move: function move(e) {
-            this.bar_being_dragged && this.bar_being_dragged.move(e);
+            if (this.dragging) {
+                this.dragging = _extends({}, this.dragging, {
+                    dx: e.offsetX - this.dragging.ex,
+                    dy: e.offsetY - this.dragging.ey
+                });
+            }
         },
-        release: function release(e) {
-            this.bar_being_dragged && this.bar_being_dragged.release(e);
-            this.bar_being_dragged = null;
+        release: function release() {
+            this.dragging = null;
         },
 
-        zoom: throttle(function (e) {
+        zoom: throttle(function (modifier) {
             var view_modes = Object.keys(scales);
-            var modifier = e.deltaY > 1 ? 1 : e.deltaY < -1 ? -1 : 0;
             var index = view_modes.indexOf(this.view_mode) + modifier;
             index = Math.min(Math.max(0, index), view_modes.length - 1);
             this.view_mode = view_modes[index];
-        }, 1000, { trailing: false })
+        }, 1000, { trailing: false }),
+        wheel: function wheel(e) {
+            // More movement in the X axis than Y, defer to default behaviour
+            if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+                return;
+            }
+            var modifier = e.deltaY > 0 ? 1 : -1;
+            this.zoom(modifier);
+            e.preventDefault();
+        }
     },
     watch: {
         view_mode: function view_mode() {
@@ -20720,6 +20844,8 @@ var GanttVue = { render: function render() {
 };
 
 function index$1 (el, tasks) {
+    Vue.config.devtools = true;
+
     var GanttVueComponent = Vue.component('gantt', GanttVue);
     new GanttVueComponent({ el: el, propsData: { tasks: tasks } });
 }

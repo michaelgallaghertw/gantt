@@ -9,6 +9,11 @@
 .gantt .hide {
   display: none; }
 
+.gantt .arrow {
+  fill: none;
+  stroke: #666;
+  stroke-width: 1.4; }
+
 .gantt-container {
   position: relative;
   overflow: auto;

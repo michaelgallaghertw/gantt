@@ -17,7 +17,7 @@
             ideal_sx: (vm) => vm.tx - vm.sizing.padding,
             sx() {
                 const furthest_left = this.fx + this.sizing.padding;
-                const furthest_right = this.fx + this.fw / 2;
+                const furthest_right = this.fx + this.fw - this.sizing.padding;
                 return Math.min(Math.max(this.ideal_sx, furthest_left), furthest_right);
             },
             sy: (vm) => vm.sizing.bar_height + vm.link.from.y,

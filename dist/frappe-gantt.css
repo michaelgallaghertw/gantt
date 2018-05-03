@@ -53,7 +53,7 @@
   fill: #333; }
 
 .gantt .bar {
-  fill: #b8c2cc;
+  fill: #A0C6E6;
   stroke: #8D99A6;
   stroke-width: 0;
   transition: stroke-width .3s ease;
@@ -61,6 +61,8 @@
 
 .gantt .bar-progress {
   fill: #a3a3ff; }
+  .gantt .bar-progress.completed {
+    fill: #C9C9C9; }
 
 .gantt .bar-label {
   fill: #fff;
@@ -82,14 +84,16 @@
 .gantt .bar-wrapper {
   cursor: pointer; }
   .gantt .bar-wrapper:hover .bar {
-    fill: #a9b5c1; }
+    fill: #8cbae1; }
   .gantt .bar-wrapper:hover .bar-progress {
     fill: #8a8aff; }
+    .gantt .bar-wrapper:hover .bar-progress.completed {
+      fill: #C9C9C9; }
   .gantt .bar-wrapper:hover .handle {
     visibility: visible;
     opacity: 1; }
   .gantt .bar-wrapper.active .bar {
-    fill: #a9b5c1; }
+    fill: #8cbae1; }
   .gantt .bar-wrapper.active .bar-progress {
     fill: #8a8aff; }
 
